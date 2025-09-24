@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { STOREFRONT_ITEMS } from '../../lib/storefront.js';
 
 const styles = `
@@ -223,6 +223,133 @@ const styles = `
   .status-card__meta {
     font-size: 0.85rem;
     color: rgba(228, 232, 255, 0.72);
+  }
+
+  .queue-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .queue-card {
+    background: rgba(8, 11, 24, 0.6);
+    border: 1px solid rgba(148, 159, 255, 0.18);
+    border-radius: 1.1rem;
+    padding: 1.5rem;
+    display: grid;
+    gap: 1rem;
+  }
+
+  .queue-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .queue-card__meta {
+    font-size: 0.85rem;
+    color: rgba(228, 232, 255, 0.7);
+  }
+
+  .queue-alert {
+    border-radius: 0.85rem;
+    padding: 0.85rem 1rem;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    border: 1px solid rgba(148, 159, 255, 0.2);
+    background: rgba(83, 109, 254, 0.18);
+  }
+
+  .queue-alert--warning {
+    background: rgba(255, 89, 145, 0.18);
+    border-color: rgba(255, 89, 145, 0.35);
+    color: rgba(255, 210, 220, 0.95);
+  }
+
+  .queue-form {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .queue-table-wrapper {
+    max-height: 320px;
+    overflow: auto;
+    border-radius: 0.9rem;
+  }
+
+  .queue-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 340px;
+  }
+
+  .queue-table th,
+  .queue-table td {
+    text-align: left;
+    padding: 0.6rem 0.4rem;
+    border-bottom: 1px solid rgba(148, 159, 255, 0.12);
+    font-size: 0.85rem;
+  }
+
+  .queue-table th {
+    position: sticky;
+    top: 0;
+    background: rgba(5, 7, 15, 0.9);
+    z-index: 1;
+    font-size: 0.78rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .queue-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    text-transform: capitalize;
+    background: rgba(83, 109, 254, 0.18);
+    border: 1px solid rgba(83, 109, 254, 0.36);
+  }
+
+  .queue-pill--staff {
+    background: rgba(83, 109, 254, 0.32);
+    border-color: rgba(83, 109, 254, 0.5);
+  }
+
+  .queue-pill--supporter {
+    background: rgba(255, 153, 102, 0.25);
+    border-color: rgba(255, 153, 102, 0.55);
+  }
+
+  .queue-pill--guest {
+    background: rgba(148, 159, 255, 0.12);
+    border-color: rgba(148, 159, 255, 0.2);
+  }
+
+  .queue-pill--active {
+    background: rgba(83, 109, 254, 0.4);
+    border-color: rgba(83, 109, 254, 0.7);
+    color: #05070f;
+    font-weight: 600;
+  }
+
+  .queue-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+
+  .queue-history {
+    font-size: 0.85rem;
+    color: rgba(228, 232, 255, 0.7);
+  }
+
+  .queue-empty {
+    font-size: 0.9rem;
+    color: rgba(228, 232, 255, 0.65);
   }
 
   .guide {
@@ -916,6 +1043,108 @@ const joinSteps = [
   'Install FiveM, add the Apex RP server to your favourites, and prepare your character dossier.'
 ];
 
+const DEFAULT_QUEUE_STATS = {
+  activeCount: 0,
+  processedCount: 0,
+  averageWait: 0,
+  longestWait: 0,
+  priorityBreakdown: {},
+  lastServed: null
+};
+
+const PRIORITY_LABELS = {
+  staff: 'Staff',
+  supporter: 'Supporter',
+  standard: 'Standard',
+  guest: 'Guest'
+};
+
+function toSafeDate(value) {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function normaliseQueueSnapshot(snapshot) {
+  if (!snapshot) {
+    return {
+      active: [],
+      stats: { ...DEFAULT_QUEUE_STATS },
+      history: [],
+      updatedAt: new Date()
+    };
+  }
+
+  const active = Array.isArray(snapshot.active)
+    ? snapshot.active.map((entry, index) => ({
+        ...entry,
+        position: entry.position ?? index + 1,
+        joinedAt: toSafeDate(entry.joinedAt) ?? new Date(),
+        waitedMinutes: typeof entry.waitedMinutes === 'number' ? entry.waitedMinutes : 0,
+        etaMinutes: typeof entry.etaMinutes === 'number' ? entry.etaMinutes : 0
+      }))
+    : [];
+
+  const history = Array.isArray(snapshot.history)
+    ? snapshot.history.map((entry) => ({
+        ...entry,
+        joinedAt: toSafeDate(entry.joinedAt),
+        leftAt: toSafeDate(entry.leftAt)
+      }))
+    : [];
+
+  const lastServed = snapshot.stats?.lastServed
+    ? {
+        ...snapshot.stats.lastServed,
+        joinedAt: toSafeDate(snapshot.stats.lastServed.joinedAt),
+        leftAt: toSafeDate(snapshot.stats.lastServed.leftAt)
+      }
+    : null;
+
+  return {
+    active,
+    stats: {
+      ...DEFAULT_QUEUE_STATS,
+      ...snapshot.stats,
+      priorityBreakdown: {
+        ...DEFAULT_QUEUE_STATS.priorityBreakdown,
+        ...(snapshot.stats?.priorityBreakdown ?? {})
+      },
+      lastServed
+    },
+    history,
+    updatedAt: toSafeDate(snapshot.updatedAt) ?? new Date()
+  };
+}
+
+function formatMinutes(value) {
+  const minutes = Number(value);
+  if (!Number.isFinite(minutes) || minutes <= 0) {
+    return 'Less than a minute';
+  }
+  if (minutes === 1) {
+    return '1 minute';
+  }
+  return `${minutes} minutes`;
+}
+
+function getPriorityLabel(priority) {
+  if (!priority) return 'Standard';
+  return PRIORITY_LABELS[priority] ?? `${priority.slice(0, 1).toUpperCase()}${priority.slice(1)}`;
+}
+
+function queuePillClass(priority, isActive = false) {
+  const classes = ['queue-pill'];
+  if (priority && PRIORITY_LABELS[priority]) {
+    classes.push(`queue-pill--${priority}`);
+  }
+  if (isActive) {
+    classes.push('queue-pill--active');
+  }
+  return classes.join(' ');
+}
+
 function formatDate(value) {
   const date = new Date(value);
   return date.toLocaleString('en-GB', {
@@ -941,6 +1170,26 @@ function statusClass(status) {
 }
 
 export default function ClientApp({ queueSnapshot }) {
+  const [queueState, setQueueState] = useState(() => normaliseQueueSnapshot(queueSnapshot));
+  const [queueForm, setQueueForm] = useState({
+    playerName: '',
+    steamId: '',
+    role: 'Civilian',
+    priority: 'standard',
+    notes: ''
+  });
+  const [queueSubmitting, setQueueSubmitting] = useState(false);
+  const [queueJoinStatus, setQueueJoinStatus] = useState({ type: null, message: '' });
+  const [queueSyncError, setQueueSyncError] = useState('');
+  const [trackedEntryId, setTrackedEntryId] = useState(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      return window.localStorage.getItem('apexQueueEntryId');
+    } catch (error) {
+      return null;
+    }
+  });
+
   const [banner, setBanner] = useState(initialBanner);
   const [news, setNews] = useState(initialNews);
   const [rules, setRules] = useState(initialRules);
@@ -980,7 +1229,7 @@ export default function ClientApp({ queueSnapshot }) {
     state: 'Online',
     playersOnline: 182,
     maxPlayers: 350,
-    queueLength: queueSnapshot?.active?.length ?? 0,
+    queueLength: queueState.active.length,
     uptime: '18h 42m',
     lastRestart: 'Today 09:00 UTC',
     address: 'fivem://apexroleplay'
@@ -990,13 +1239,199 @@ export default function ClientApp({ queueSnapshot }) {
   const applicationIdRef = useRef(initialApplications.length + 1);
   const galleryIdRef = useRef(initialGallery.length + 1);
   const ticketIdRef = useRef(initialSupportTickets.length + 1);
+  const hasLaunchedRef = useRef(false);
 
-  const queueStats = queueSnapshot?.stats ?? {
-    activeCount: 0,
-    processedCount: 0,
-    averageWait: 0,
-    longestWait: 0,
-    priorityBreakdown: {}
+  const queueStats = queueState.stats ?? DEFAULT_QUEUE_STATS;
+  const queueBreakdown = queueStats.priorityBreakdown ?? {};
+  const priorityPackages = useMemo(
+    () =>
+      storeItems.filter((item) => {
+        if (!item.active || item.platform !== 'Tebex') return false;
+        const name = item.name?.toLowerCase?.() ?? '';
+        const category = item.category?.toLowerCase?.() ?? '';
+        return category.includes('support') || category.includes('priority') || name.includes('priority');
+      }),
+    [storeItems]
+  );
+
+  const myQueueEntry = useMemo(() => {
+    if (!trackedEntryId) return null;
+    const activeMatch = queueState.active.find((entry) => entry.id === trackedEntryId);
+    if (activeMatch) {
+      return { ...activeMatch, state: 'active' };
+    }
+    const historyMatch = queueState.history.find((entry) => entry.id === trackedEntryId);
+    if (historyMatch) {
+      return { ...historyMatch, state: historyMatch.status ?? 'history' };
+    }
+    return null;
+  }, [queueState.active, queueState.history, trackedEntryId]);
+
+  const queueActivePreview = useMemo(() => queueState.active.slice(0, 12), [queueState.active]);
+  const queueUpdatedAt = queueState.updatedAt;
+
+  const fetchQueueSnapshot = useCallback(async () => {
+    const response = await fetch('/api/queue', { cache: 'no-store' });
+    const data = await response.json().catch(() => null);
+    if (!response.ok || !data) {
+      throw new Error(data?.error || 'Unable to refresh queue.');
+    }
+    return normaliseQueueSnapshot(data);
+  }, []);
+
+  const handleQueueRefresh = useCallback(async () => {
+    try {
+      const snapshot = await fetchQueueSnapshot();
+      setQueueState(snapshot);
+      setQueueSyncError('');
+    } catch (error) {
+      setQueueSyncError(error.message || 'Unable to refresh queue.');
+    }
+  }, [fetchQueueSnapshot]);
+
+  useEffect(() => {
+    let ignore = false;
+
+    const load = async () => {
+      try {
+        const snapshot = await fetchQueueSnapshot();
+        if (ignore) return;
+        setQueueState(snapshot);
+        setQueueSyncError('');
+      } catch (error) {
+        if (!ignore) {
+          setQueueSyncError(error.message || 'Unable to refresh queue.');
+        }
+      }
+    };
+
+    const interval = setInterval(load, 5000);
+    load();
+
+    return () => {
+      ignore = true;
+      clearInterval(interval);
+    };
+  }, [fetchQueueSnapshot]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      if (trackedEntryId) {
+        window.localStorage.setItem('apexQueueEntryId', trackedEntryId);
+      } else {
+        window.localStorage.removeItem('apexQueueEntryId');
+      }
+    } catch (error) {
+      // ignore storage issues
+    }
+  }, [trackedEntryId]);
+
+  useEffect(() => {
+    setServerStatus((prev) => {
+      if (prev.queueLength === queueState.active.length) {
+        return prev;
+      }
+      return { ...prev, queueLength: queueState.active.length };
+    });
+  }, [queueState.active.length]);
+
+  useEffect(() => {
+    if (!myQueueEntry || typeof window === 'undefined') {
+      return;
+    }
+
+    if (myQueueEntry.state === 'active') {
+      if (myQueueEntry.position === 1 && !hasLaunchedRef.current) {
+        const launchUrl = serverStatus.address || 'fivem://connect/apexroleplay';
+        hasLaunchedRef.current = true;
+        try {
+          window.open(launchUrl, '_self');
+        } catch (error) {
+          window.location.href = launchUrl;
+        }
+        setQueueJoinStatus({
+          type: 'success',
+          message:
+            'It\'s your turn to connect! We\'ve attempted to launch FiveM automatically. Use the join button below if it did not open.'
+        });
+      } else if (myQueueEntry.position > 1) {
+        hasLaunchedRef.current = false;
+      }
+    } else {
+      hasLaunchedRef.current = false;
+    }
+  }, [myQueueEntry, serverStatus.address]);
+
+  useEffect(() => {
+    hasLaunchedRef.current = false;
+  }, [trackedEntryId]);
+
+  const clearTrackedEntry = () => {
+    setTrackedEntryId(null);
+    setQueueJoinStatus({ type: null, message: '' });
+  };
+
+  const handleQueueSubmit = async (event) => {
+    event.preventDefault();
+    const trimmedName = queueForm.playerName.trim();
+    if (!trimmedName) {
+      setQueueJoinStatus({
+        type: 'error',
+        message: 'Add your in-city name so staff can identify you in the queue.'
+      });
+      return;
+    }
+
+    setQueueSubmitting(true);
+    setQueueJoinStatus({ type: null, message: '' });
+
+    try {
+      const payload = {
+        playerName: trimmedName,
+        priority: queueForm.priority,
+        role: queueForm.role.trim() || undefined,
+        steamId: queueForm.steamId.trim() || undefined,
+        notes: queueForm.notes.trim() || undefined
+      };
+
+      const response = await fetch('/api/queue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok || !data?.entry) {
+        throw new Error(data?.error || 'Unable to join queue.');
+      }
+
+      const nextSnapshot = data.snapshot
+        ? normaliseQueueSnapshot(data.snapshot)
+        : await fetchQueueSnapshot();
+
+      setQueueState(nextSnapshot);
+      setTrackedEntryId(data.entry.id);
+      setQueueJoinStatus({
+        type: 'success',
+        message: `You joined the queue as ${data.entry.playerName}. Keep this page open for automatic updates.`
+      });
+      setQueueSyncError('');
+      setQueueForm((prev) => ({
+        ...prev,
+        playerName: '',
+        steamId: '',
+        notes: ''
+      }));
+    } catch (error) {
+      setQueueJoinStatus({
+        type: 'error',
+        message: error.message || 'Unable to join queue.'
+      });
+    } finally {
+      setQueueSubmitting(false);
+    }
   };
 
   const applicationStats = useMemo(() => {
@@ -1362,9 +1797,9 @@ export default function ClientApp({ queueSnapshot }) {
               <article className="status-card">
                 <h3>Queue metrics</h3>
                 <strong>{queueStats.activeCount} players waiting</strong>
-                <span className="status-card__meta">Avg wait {queueStats.averageWait} min · Served {queueStats.processedCount}</span>
+                <span className="status-card__meta">Avg wait {formatMinutes(queueStats.averageWait)} · Served {queueStats.processedCount}</span>
                 <span className="status-card__meta">
-                  Priority mix: staff {queueStats.priorityBreakdown.staff ?? 0} · supporter {queueStats.priorityBreakdown.supporter ?? 0} · standard {queueStats.priorityBreakdown.standard ?? 0}
+                  Priority mix: staff {queueBreakdown.staff ?? 0} · supporter {queueBreakdown.supporter ?? 0} · standard {queueBreakdown.standard ?? 0} · guest {queueBreakdown.guest ?? 0}
                 </span>
               </article>
 
@@ -1375,6 +1810,203 @@ export default function ClientApp({ queueSnapshot }) {
                     <li key={index}>{step}</li>
                   ))}
                 </ol>
+              </article>
+            </div>
+          </section>
+          <section id="queue">
+            <div className="section-heading">
+              <h2>Live queue</h2>
+              <p>Monitor your place in line, city population, and priority options in real time.</p>
+            </div>
+            <div className="queue-grid">
+              <article className="queue-card">
+                <div className="queue-card__header">
+                  <h3>Server pulse</h3>
+                  <span className="queue-card__meta">
+                    Updated {queueUpdatedAt ? queueUpdatedAt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : 'just now'}
+                  </span>
+                </div>
+                <div className="queue-alert">
+                  {serverStatus.playersOnline}/{serverStatus.maxPlayers} in city · {queueStats.activeCount} waiting · Served {queueStats.processedCount}
+                </div>
+                <div className="queue-card__meta">
+                  Average wait {formatMinutes(queueStats.averageWait)} · Longest wait {formatMinutes(queueStats.longestWait)}
+                </div>
+                <div className="queue-card__meta">
+                  Priority mix: staff {queueBreakdown.staff ?? 0} · supporter {queueBreakdown.supporter ?? 0} · standard {queueBreakdown.standard ?? 0} · guest {queueBreakdown.guest ?? 0}
+                </div>
+                {queueSyncError ? (
+                  <div className="queue-alert queue-alert--warning">{queueSyncError}</div>
+                ) : (
+                  <div className="queue-card__meta">Auto-refreshes every 5 seconds.</div>
+                )}
+                <div className="queue-actions">
+                  <button type="button" className="button" onClick={handleQueueRefresh} disabled={queueSubmitting}>
+                    Refresh now
+                  </button>
+                  <a className="button button--ghost" href="#donate">
+                    View priority packages
+                  </a>
+                </div>
+              </article>
+
+              <article className="queue-card">
+                <h3>Your place</h3>
+                {trackedEntryId ? (
+                  <>
+                    {myQueueEntry && myQueueEntry.state === 'active' ? (
+                      <>
+                        <div className="queue-alert">
+                          You are #{myQueueEntry.position} in queue — {formatMinutes(myQueueEntry.etaMinutes)} remaining.
+                        </div>
+                        <p className="queue-card__meta">
+                          Joined {myQueueEntry.joinedAt ? myQueueEntry.joinedAt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : 'recently'} · Priority {getPriorityLabel(myQueueEntry.priority)}
+                        </p>
+                        <div className="queue-actions">
+                          <a className="button button--primary" href={serverStatus.address || 'fivem://connect/apexroleplay'}>
+                            Launch FiveM
+                          </a>
+                          <button type="button" className="button button--ghost" onClick={clearTrackedEntry}>
+                            Stop tracking
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className={`queue-alert${myQueueEntry?.status === 'served' ? '' : ' queue-alert--warning'}`}>
+                          {myQueueEntry?.status === 'served'
+                            ? 'You have been cleared to join. Launch FiveM when ready.'
+                            : 'We could not find your queue entry. You may have been removed or already connected.'}
+                        </div>
+                        <div className="queue-actions">
+                          <a className="button button--primary" href={serverStatus.address || 'fivem://connect/apexroleplay'}>
+                            Launch FiveM
+                          </a>
+                          <button type="button" className="button button--ghost" onClick={clearTrackedEntry}>
+                            Join again
+                          </button>
+                        </div>
+                      </>
+                    )}
+                    <p className="queue-card__meta">Tracking ID: {trackedEntryId}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="queue-card__meta">
+                      Reserve your slot below. Keep this tab open and we will launch FiveM automatically once it is your turn.
+                    </p>
+                    <form className="queue-form" onSubmit={handleQueueSubmit}>
+                      <label>
+                        Character / IGN
+                        <input
+                          value={queueForm.playerName}
+                          onChange={(event) => setQueueForm((prev) => ({ ...prev, playerName: event.target.value }))}
+                          placeholder="Nova Ridge"
+                          required
+                        />
+                      </label>
+                      <label>
+                        Steam hex (optional)
+                        <input
+                          value={queueForm.steamId}
+                          onChange={(event) => setQueueForm((prev) => ({ ...prev, steamId: event.target.value }))}
+                          placeholder="steam:11000010..."
+                        />
+                      </label>
+                      <label>
+                        Role (optional)
+                        <input
+                          value={queueForm.role}
+                          onChange={(event) => setQueueForm((prev) => ({ ...prev, role: event.target.value }))}
+                          placeholder="Civilian"
+                        />
+                      </label>
+                      <label>
+                        Priority tier
+                        <select
+                          value={queueForm.priority}
+                          onChange={(event) => setQueueForm((prev) => ({ ...prev, priority: event.target.value }))}
+                        >
+                          <option value="staff">Staff</option>
+                          <option value="supporter">Supporter</option>
+                          <option value="standard">Standard</option>
+                          <option value="guest">Guest</option>
+                        </select>
+                      </label>
+                      <label>
+                        Notes for staff (optional)
+                        <textarea
+                          value={queueForm.notes}
+                          onChange={(event) => setQueueForm((prev) => ({ ...prev, notes: event.target.value }))}
+                          placeholder="Duty status, planned event, etc."
+                        />
+                      </label>
+                      <button className="button button--primary" type="submit" disabled={queueSubmitting}>
+                        {queueSubmitting ? 'Joining queue…' : 'Join the queue'}
+                      </button>
+                    </form>
+                  </>
+                )}
+                {queueJoinStatus.message && (
+                  <div className={`queue-alert${queueJoinStatus.type === 'error' ? ' queue-alert--warning' : ''}`}>
+                    {queueJoinStatus.message}
+                  </div>
+                )}
+                {priorityPackages.length > 0 && (
+                  <div className="queue-card__meta">
+                    Boost your access with {priorityPackages[0].name}
+                    {priorityPackages.length > 1 ? ' and more priority options' : ''} in the donations section.
+                  </div>
+                )}
+              </article>
+
+              <article className="queue-card">
+                <h3>Queue overview</h3>
+                {queueActivePreview.length ? (
+                  <div className="queue-table-wrapper">
+                    <table className="queue-table">
+                      <thead>
+                        <tr>
+                          <th>#</th>
+                          <th>Player</th>
+                          <th>Priority</th>
+                          <th>Wait</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {queueActivePreview.map((entry) => (
+                          <tr key={entry.id}>
+                            <td>{entry.position}</td>
+                            <td>
+                              <strong>{entry.playerName}</strong>
+                              <div className="queue-card__meta">{entry.role}</div>
+                            </td>
+                            <td>
+                              <span className={queuePillClass(entry.priority, trackedEntryId === entry.id)}>
+                                {getPriorityLabel(entry.priority)}
+                              </span>
+                            </td>
+                            <td>
+                              {formatMinutes(entry.waitedMinutes)}
+                              <div className="queue-card__meta">ETA {formatMinutes(entry.etaMinutes)}</div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="queue-empty">Queue is currently clear. You can join instantly.</p>
+                )}
+                {queueStats.lastServed && (
+                  <div className="queue-history">
+                    Last served: {queueStats.lastServed.playerName}
+                    {queueStats.lastServed.leftAt
+                      ? ` at ${queueStats.lastServed.leftAt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`
+                      : ''}
+                    {queueStats.lastServed.priority ? ` · ${getPriorityLabel(queueStats.lastServed.priority)} priority` : ''}
+                  </div>
+                )}
               </article>
             </div>
           </section>
