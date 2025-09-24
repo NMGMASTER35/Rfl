@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Apex RP Queue Portal</title>
+    <meta
+      name="description"
+      content="Apex RP queue portal with live status, onboarding, applications, and staff tools."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="page">
+      <nav class="nav">
+        <div class="nav__inner">
+          <a class="brand" href="#home">
+            <span class="brand__logo">AR</span>
+            <span>Apex RP</span>
+          </a>
+          <div class="nav__links">
+            <a class="nav__link" href="#home">Home</a>
+            <a class="nav__link" href="#rules">Rules</a>
+            <a class="nav__link" href="#join">Join</a>
+            <a class="nav__link" href="#apply">Apply</a>
+            <a class="nav__link" href="#donate">Donate</a>
+            <a class="nav__link" href="#discord">Discord</a>
+            <a class="nav__link" href="#admin">Admin</a>
+          </div>
+        </div>
+      </nav>
+
+      <main>
+        <section id="home" class="hero">
+          <div class="hero__content">
+            <span class="hero__badge">Apex Roleplay Network</span>
+            <h1 class="hero__title" id="hero-title"></h1>
+            <p class="hero__subtitle" id="hero-tagline"></p>
+            <p class="hero__subtitle" id="hero-callout"></p>
+            <div class="quick-actions">
+              <a class="button button--primary" href="fivem://connect/apexroleplay">Join the server</a>
+              <a class="button" href="#discord">Discord</a>
+              <a class="button" href="#rules">Rules</a>
+              <a class="button" href="#apply">Applications</a>
+              <a class="button button--ghost" href="#donate">Donate</a>
+            </div>
+          </div>
+          <div class="status-grid">
+            <article class="status-card" id="server-card">
+              <h3>Server status</h3>
+              <strong id="server-state"></strong>
+              <span class="status-card__meta" id="server-population"></span>
+              <span class="status-card__meta" id="server-uptime"></span>
+              <span class="status-card__meta" id="server-restart"></span>
+              <span class="status-card__meta" id="server-address"></span>
+            </article>
+            <article class="status-card" id="queue-card">
+              <h3>Queue metrics</h3>
+              <strong id="queue-waiting"></strong>
+              <span class="status-card__meta" id="queue-average"></span>
+              <span class="status-card__meta" id="queue-priority"></span>
+            </article>
+            <article class="guide">
+              <h3>How to join Apex RP</h3>
+              <ol id="join-steps"></ol>
+            </article>
+          </div>
+        </section>
+
+        <section id="rules">
+          <div class="section-heading">
+            <h2>Rules &amp; Handbook</h2>
+            <p>Keep the city professional, immersive, and respectful. These guidelines are non-negotiable.</p>
+          </div>
+          <div class="rules-grid">
+            <div class="rules-group">
+              <h3>Roleplay Standards</h3>
+              <ul class="rules-list" id="rule-roleplay"></ul>
+            </div>
+            <div class="rules-group">
+              <h3>Community Conduct</h3>
+              <ul class="rules-list" id="rule-community"></ul>
+            </div>
+          </div>
+        </section>
+
+        <section id="news">
+          <div class="section-heading">
+            <h2>Announcements &amp; Changelogs</h2>
+            <p>Stay current with new scripts, rule updates, and city events.</p>
+          </div>
+          <div class="news-grid" id="news-grid"></div>
+        </section>
+
+        <section id="showcase">
+          <div class="section-heading">
+            <h2>City Life &amp; Career Paths</h2>
+            <p>Discover the jobs and activities that define Apex RP. Every path has mentors ready to help.</p>
+          </div>
+          <div class="jobs-grid" id="jobs-grid"></div>
+        </section>
+
+        <section id="gallery">
+          <div class="section-heading">
+            <h2>Media Gallery</h2>
+            <p>Highlights from patrols, community events, and cinematic trailers.</p>
+          </div>
+          <div class="gallery-grid" id="gallery-grid"></div>
+        </section>
+
+        <section id="join">
+          <div class="section-heading">
+            <h2>Ready to Join?</h2>
+            <p>Follow the onboarding checklist and submit your whitelist dossier.</p>
+          </div>
+          <div class="card-grid">
+            <article class="card">
+              <h3>Server quick facts</h3>
+              <ul>
+                <li>Voice: In-game + Discord radio relays</li>
+                <li>Framework: Custom QBCore blend</li>
+                <li>Peak population: <span id="server-peak"></span></li>
+                <li>Region: EU/NA mixed scheduling</li>
+                <li>Interviews hosted weekly</li>
+              </ul>
+            </article>
+            <article class="card">
+              <h3>Whitelist expectations</h3>
+              <p>
+                We seek storytellers who communicate, respect boundaries, and collaborate. Provide detailed answers in your
+                application to help staff learn your style and past experience.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Need assistance?</h3>
+              <p>
+                Hop into #support-tickets or complete the support form below. Staff handle onboarding daily with regionally
+                staggered coverage.
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <section id="apply">
+          <div class="section-heading">
+            <h2>Applications</h2>
+            <p>Select the path that suits you. All submissions appear instantly in the staff portal for review.</p>
+          </div>
+          <div class="application-roles" id="application-roles"></div>
+          <article class="form-card">
+            <h3>Submit your application</h3>
+            <form id="application-form">
+              <label>
+                Role applying for
+                <select name="role" required>
+                  <option value="whitelist">Whitelist</option>
+                  <option value="police">Police</option>
+                  <option value="ems">EMS</option>
+                  <option value="mechanic">Mechanic</option>
+                  <option value="gang">Gang / Org</option>
+                  <option value="staff">Staff</option>
+                </select>
+              </label>
+              <label>
+                Character name / callsign
+                <input name="characterName" placeholder="Jordan Voss" required />
+              </label>
+              <label>
+                Discord handle
+                <input name="discord" placeholder="username#0001" required />
+              </label>
+              <label>
+                Experience
+                <textarea
+                  name="experience"
+                  placeholder="Previous RP communities, certifications, or relevant background"
+                ></textarea>
+              </label>
+              <label>
+                Availability
+                <input name="availability" placeholder="Weeknights, EU evenings, etc." />
+              </label>
+              <label>
+                Why should we pick you?
+                <textarea name="motivation" placeholder="Share your plans for Apex RP"></textarea>
+              </label>
+              <button class="button button--primary" type="submit">Submit application</button>
+            </form>
+            <div class="feedback" id="application-feedback" hidden></div>
+          </article>
+        </section>
+
+        <section id="donate">
+          <div class="section-heading">
+            <h2>Donations &amp; Store</h2>
+            <p>Support Apex RP through Tebex or PayPal. Every contribution funds servers, scripts, and events.</p>
+          </div>
+          <div class="card-grid" id="store-grid"></div>
+        </section>
+
+        <section id="discord">
+          <div class="section-heading">
+            <h2>Discord &amp; Community</h2>
+            <p>Live widget updates automatically once your account is linked.</p>
+          </div>
+          <article class="discord-card">
+            <p>Join over 8,000 members for alerts, development sneak peeks, and direct staff support.</p>
+            <a class="button button--primary" href="https://discord.gg/apexrp" target="_blank" rel="noreferrer"
+              >Join Discord</a
+            >
+            <div class="discord-embed">
+              <iframe
+                id="discord-embed"
+                title="Apex RP Discord"
+                width="100%"
+                height="100%"
+                allowtransparency="true"
+                sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"
+              ></iframe>
+            </div>
+          </article>
+        </section>
+
+        <section id="support">
+          <div class="section-heading">
+            <h2>Support &amp; Tickets</h2>
+            <p>Need help? Submit a ticket or reach out via Discord for the fastest response.</p>
+          </div>
+          <div class="support-grid">
+            <article class="support-card">
+              <h3>Open a ticket</h3>
+              <form id="support-form">
+                <label>
+                  Subject
+                  <input name="subject" placeholder="Describe your issue" required />
+                </label>
+                <label>
+                  Preferred contact
+                  <input name="contact" placeholder="Discord tag or email" />
+                </label>
+                <label>
+                  Channel
+                  <select name="channel">
+                    <option>Discord</option>
+                    <option>Web</option>
+                    <option>Email</option>
+                  </select>
+                </label>
+                <label>
+                  Details
+                  <textarea name="message" placeholder="Provide as much context as possible"></textarea>
+                </label>
+                <button class="button button--primary" type="submit">Submit ticket</button>
+              </form>
+              <div class="feedback" id="support-feedback" hidden></div>
+            </article>
+            <article class="support-card">
+              <h3>Ticket stats</h3>
+              <p>Open: <span id="ticket-open"></span></p>
+              <p>Pending: <span id="ticket-pending"></span></p>
+              <p>Resolved: <span id="ticket-resolved"></span></p>
+              <p>Total: <span id="ticket-total"></span></p>
+              <p>Staff monitor tickets 24/7 with global coverage.</p>
+            </article>
+            <article class="support-card">
+              <h3>Contact</h3>
+              <p>Email: support@apexrp.example</p>
+              <p>Discord: #support-tickets</p>
+              <p>In-game: /report command</p>
+              <p>Response target: &lt; 6 hours</p>
+            </article>
+          </div>
+        </section>
+
+        <section id="admin" class="admin">
+          <div class="section-heading">
+            <h2>Admin Portal</h2>
+            <p>Secure tools for staff to manage content, applications, and live operations.</p>
+          </div>
+          <div id="admin-login" class="admin-login">
+            <h3>Staff sign-in</h3>
+            <form id="login-form">
+              <label>
+                Username
+                <input name="username" placeholder="command" required />
+              </label>
+              <label>
+                Password
+                <input name="password" type="password" placeholder="••••••••" required />
+              </label>
+              <button class="button button--primary" type="submit">Log in</button>
+            </form>
+            <div class="error" id="login-error" hidden></div>
+            <small
+              >Tip: credentials are seeded for demo access — user <code>command</code>, pass <code>apex-admin</code>.</small
+            >
+          </div>
+          <div id="admin-panel" class="admin-grid" hidden>
+            <div class="admin-actions admin-panel__welcome">
+              <span id="admin-welcome"></span>
+              <button id="logout-button" type="button">Log out</button>
+            </div>
+            <div class="admin-grid__two">
+              <article class="card">
+                <h3>Operational overview</h3>
+                <p>Total applications: <span id="admin-app-total"></span></p>
+                <p>Pending: <span id="admin-app-pending"></span></p>
+                <p>Approved: <span id="admin-app-approved"></span></p>
+                <p>Denied: <span id="admin-app-denied"></span></p>
+                <p>Tickets open: <span id="admin-ticket-open"></span></p>
+                <p>Comments flagged: <span id="admin-comments-flagged"></span></p>
+              </article>
+              <article class="card">
+                <h3>Server status controls</h3>
+                <form id="server-form">
+                  <label>
+                    State
+                    <input name="state" />
+                  </label>
+                  <label>
+                    Players online
+                    <input name="playersOnline" type="number" min="0" />
+                  </label>
+                  <label>
+                    Max players
+                    <input name="maxPlayers" type="number" min="1" />
+                  </label>
+                  <label>
+                    Queue length
+                    <input name="queueLength" type="number" min="0" />
+                  </label>
+                  <label>
+                    Uptime
+                    <input name="uptime" />
+                  </label>
+                  <label>
+                    Last restart
+                    <input name="lastRestart" />
+                  </label>
+                  <label>
+                    Address
+                    <input name="address" />
+                  </label>
+                  <button class="button button--primary" type="submit">Update server status</button>
+                </form>
+              </article>
+            </div>
+            <article class="card">
+              <h3>Announcements management</h3>
+              <form id="news-form">
+                <label>
+                  Title
+                  <input name="title" placeholder="Patch 1.8 deployment" required />
+                </label>
+                <label>
+                  Summary
+                  <input name="excerpt" placeholder="Key takeaways" />
+                </label>
+                <label>
+                  Details
+                  <textarea name="body" placeholder="Full announcement body"></textarea>
+                </label>
+                <button class="button button--primary" type="submit">Publish update</button>
+              </form>
+              <div class="news-grid admin-news-grid" id="admin-news-grid"></div>
+            </article>
+            <article class="card">
+              <h3>Rules editor</h3>
+              <div class="admin-grid__two" id="admin-rules"></div>
+            </article>
+            <article class="card">
+              <h3>Media uploads</h3>
+              <form id="gallery-form">
+                <label>
+                  Title
+                  <input name="title" placeholder="New media asset" />
+                </label>
+                <label>
+                  Type
+                  <select name="type">
+                    <option value="image">Image</option>
+                    <option value="video">Video</option>
+                  </select>
+                </label>
+                <label>
+                  URL
+                  <input name="url" placeholder="https://" required />
+                </label>
+                <button class="button button--primary" type="submit">Add to gallery</button>
+              </form>
+              <div class="gallery-grid admin-gallery-grid" id="admin-gallery-grid"></div>
+            </article>
+            <article class="card">
+              <h3>Applications queue</h3>
+              <div class="admin-actions admin-filter-row">
+                <label>
+                  Filter by role
+                  <select id="admin-app-filter">
+                    <option value="all">All</option>
+                    <option value="whitelist">Whitelist</option>
+                    <option value="police">Police</option>
+                    <option value="ems">EMS</option>
+                    <option value="mechanic">Mechanic</option>
+                    <option value="gang">Gang</option>
+                    <option value="staff">Staff</option>
+                  </select>
+                </label>
+                <span id="admin-app-count"></span>
+              </div>
+              <div class="table-wrapper">
+                <table id="admin-app-table">
+                  <thead>
+                    <tr>
+                      <th>Role</th>
+                      <th>Character</th>
+                      <th>Discord</th>
+                      <th>Submitted</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </article>
+            <article class="card">
+              <h3>Support tickets</h3>
+              <div class="table-wrapper">
+                <table id="admin-ticket-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Subject</th>
+                      <th>User</th>
+                      <th>Channel</th>
+                      <th>Created</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </article>
+            <article class="card">
+              <h3>Community moderation</h3>
+              <div id="admin-comments"></div>
+            </article>
+            <article class="card">
+              <h3>Discord embed</h3>
+              <form id="discord-form">
+                <label>
+                  Guild ID
+                  <input name="guildId" />
+                </label>
+                <label>
+                  Channel ID
+                  <input name="channelId" />
+                </label>
+                <button class="button button--primary" type="submit">Update Discord embed</button>
+              </form>
+              <h4>Store availability</h4>
+              <div id="admin-store"></div>
+            </article>
+          </div>
+        </section>
+      </main>
+
+      <footer>
+        <strong>Apex RP · Professional FiveM roleplay</strong>
+        <small>Server IP: <span id="footer-address"></span> · Discord: discord.gg/apexrp · Tebex: store.apexrp.example</small>
+        <small>
+          Admin portal updates sync instantly with live pages. For issues email leadership@apexrp.example.
+        </small>
+      </footer>
+    </div>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
