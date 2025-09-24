@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
+import { STOREFRONT_ITEMS } from '../../lib/storefront.js';
 
 const styles = `
   :root {
@@ -445,6 +446,42 @@ const styles = `
     background: rgba(8, 11, 24, 0.58);
   }
 
+  .tebex-form {
+    gap: 0.75rem;
+  }
+
+  .tebex-form label {
+    font-size: 0.85rem;
+  }
+
+  .tebex-form input {
+    width: 100%;
+  }
+
+  .tebex-form button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .purchase-feedback {
+    margin-top: 0.8rem;
+    padding: 0.75rem 1rem;
+    border-radius: 0.75rem;
+    font-size: 0.9rem;
+  }
+
+  .purchase-feedback--success {
+    background: rgba(83, 109, 254, 0.18);
+    border: 1px solid rgba(83, 109, 254, 0.32);
+    color: rgba(228, 232, 255, 0.95);
+  }
+
+  .purchase-feedback--error {
+    background: rgba(255, 89, 145, 0.18);
+    border: 1px solid rgba(255, 89, 145, 0.32);
+    color: rgba(255, 210, 220, 0.95);
+  }
+
   .discord-embed {
     border-radius: 0.9rem;
     overflow: hidden;
@@ -828,33 +865,6 @@ const initialApplications = [
   }
 ];
 
-const initialStoreItems = [
-  {
-    id: 'store-1',
-    name: 'Priority Supporter',
-    description: 'Queue priority, supporter role, and monthly merch raffle entry.',
-    price: '£12.00',
-    active: true,
-    platform: 'Tebex'
-  },
-  {
-    id: 'store-2',
-    name: 'Gang Package',
-    description: 'Faction toolkit review with staff, custom spray, and stash upgrades.',
-    price: '£45.00',
-    active: true,
-    platform: 'Tebex'
-  },
-  {
-    id: 'store-3',
-    name: 'One-time Donation',
-    description: 'Support server costs via PayPal. Includes Discord donor tag.',
-    price: 'Custom',
-    active: true,
-    platform: 'PayPal'
-  }
-];
-
 const initialSupportTickets = [
   {
     id: 'ticket-1',
@@ -937,7 +947,7 @@ export default function ClientApp({ queueSnapshot }) {
   const [gallery, setGallery] = useState(initialGallery);
   const [applications, setApplications] = useState(initialApplications);
   const [selectedApplicationRole, setSelectedApplicationRole] = useState('all');
-  const [storeItems, setStoreItems] = useState(initialStoreItems);
+  const [storeItems, setStoreItems] = useState(() => STOREFRONT_ITEMS.map((item) => ({ ...item })));
   const [supportTickets, setSupportTickets] = useState(initialSupportTickets);
   const [comments, setComments] = useState(initialComments);
   const [adminUser, setAdminUser] = useState(null);
@@ -963,6 +973,7 @@ export default function ClientApp({ queueSnapshot }) {
     message: ''
   });
   const [supportConfirmation, setSupportConfirmation] = useState('');
+  const [purchaseState, setPurchaseState] = useState({});
   const [newNews, setNewNews] = useState({ title: '', excerpt: '', body: '' });
   const [newGallery, setNewGallery] = useState({ title: '', url: '', type: 'image' });
   const [serverStatus, setServerStatus] = useState({
@@ -1007,6 +1018,83 @@ export default function ClientApp({ queueSnapshot }) {
     const resolved = supportTickets.filter((ticket) => ticket.status === 'resolved').length;
     return { open, pending, resolved, total: supportTickets.length };
   }, [supportTickets]);
+
+  const handleTebexPurchase = async (event, item) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const username = String(formData.get('username') || '').trim();
+    const emailValue = formData.get('email');
+    const email = emailValue ? String(emailValue).trim() : '';
+    const quantityValue = formData.get('quantity');
+    const quantity = quantityValue ? Number(quantityValue) : 1;
+
+    if (!username) {
+      setPurchaseState((prev) => ({
+        ...prev,
+        [item.id]: { status: 'error', message: 'Character name is required to start a checkout.' }
+      }));
+      return;
+    }
+
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      setPurchaseState((prev) => ({
+        ...prev,
+        [item.id]: {
+          status: 'error',
+          message: 'Quantity must be a whole number greater than zero.'
+        }
+      }));
+      return;
+    }
+
+    setPurchaseState((prev) => ({ ...prev, [item.id]: { status: 'loading' } }));
+
+    try {
+      const response = await fetch('/api/tebex/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          packageId: item.packageId,
+          username,
+          email: email || undefined,
+          quantity,
+          returnUrl: typeof window !== 'undefined' ? window.location.origin : undefined
+        })
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok || !data) {
+        const message = data?.error || 'Unable to create checkout session.';
+        throw new Error(message);
+      }
+
+      const redirectUrl = data.checkout?.redirectUrl || '';
+
+      setPurchaseState((prev) => ({
+        ...prev,
+        [item.id]: {
+          status: 'success',
+          message: 'Checkout created. Complete your purchase in the new tab.',
+          redirectUrl
+        }
+      }));
+
+      event.currentTarget.reset();
+
+      if (redirectUrl && typeof window !== 'undefined') {
+        window.open(redirectUrl, '_blank', 'noopener');
+      }
+    } catch (error) {
+      setPurchaseState((prev) => ({
+        ...prev,
+        [item.id]: {
+          status: 'error',
+          message: error.message || 'Unable to create checkout session.'
+        }
+      }));
+    }
+  };
   const handleApplicationSubmit = (event) => {
     event.preventDefault();
     const trimmedName = applicationForm.characterName.trim();
@@ -1521,13 +1609,61 @@ export default function ClientApp({ queueSnapshot }) {
                   <h3>{item.name}</h3>
                   <p>{item.description}</p>
                   <strong>{item.price}</strong>
+                  {item.packageId && <span>Package #{item.packageId}</span>}
                   <span>Platform: {item.platform}</span>
                   <span>Status: {item.active ? 'Available' : 'Hidden'}</span>
-                  <div className="admin-actions">
-                    <a href="https://store.apexrp.example" rel="noreferrer" target="_blank">
-                      Open store
-                    </a>
-                  </div>
+                  {item.platform === 'Tebex' && item.active ? (
+                    <>
+                      <form className="tebex-form" onSubmit={(event) => handleTebexPurchase(event, item)}>
+                        <label>
+                          Character / IGN
+                          <input name="username" placeholder="Nova Ridge" required />
+                        </label>
+                        <label>
+                          Contact email (optional)
+                          <input name="email" type="email" placeholder="you@example.com" />
+                        </label>
+                        <label>
+                          Quantity
+                          <input name="quantity" type="number" min="1" max="10" defaultValue="1" />
+                        </label>
+                        <button
+                          className="button button--primary"
+                          type="submit"
+                          disabled={purchaseState[item.id]?.status === 'loading'}
+                        >
+                          {purchaseState[item.id]?.status === 'loading' ? 'Creating checkout…' : 'Purchase via Tebex'}
+                        </button>
+                      </form>
+                      {purchaseState[item.id]?.status === 'success' && (
+                        <div className="purchase-feedback purchase-feedback--success">
+                          Checkout created.{' '}
+                          {purchaseState[item.id]?.redirectUrl ? (
+                            <a href={purchaseState[item.id].redirectUrl} target="_blank" rel="noreferrer">
+                              Complete your purchase
+                            </a>
+                          ) : (
+                            'Complete your purchase in the Tebex tab.'
+                          )}
+                        </div>
+                      )}
+                      {purchaseState[item.id]?.status === 'error' && (
+                        <div className="purchase-feedback purchase-feedback--error">
+                          {purchaseState[item.id]?.message}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="admin-actions">
+                      <a
+                        href={item.donateUrl || 'https://store.apexrp.example'}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        Open store
+                      </a>
+                    </div>
+                  )}
                 </article>
               ))}
             </div>
